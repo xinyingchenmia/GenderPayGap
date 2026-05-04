@@ -1,0 +1,130 @@
+```{r}
+pacman::p_load(ggplot2, dplyr, glmnet, car, tidyverse, mapproj,
+               gridExtra, ggrepel, plotly, skimr, usmap) 
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("impute")
+library(impute)
+salary_data = read.csv("CurrentPopulationSurvey.csv")
+df2 = salary_data
+
+salary_data <- salary_data %>% 
+  select(-c( metarea, county, farm, bpl, yrimmig, citizen, mbpl, fbpl, nativity, union, o_farm, o_bpl, o_yrimmig, o_citizen, o_mbpl, o_fbpl, o_nativity, o_educ99, tcoincwage, ind_2002_orig,	 ind_2007_orig,	 occ_81,	 ind_81,	 occ_2000female,	 unmatched_fem_81,	 occ_2000male,	 unmatched_male_81,	 ind_2000,	 occ2000_81,	 ind2000_81,	 occ_1990,	 ind_1990,	 occ_1999,	 ind_1999,	 unmatched_occ_90,	 occ2000_90,	 unmatched_ind_90,	 ind2000_90,	 indname2000_90,	 unmatched_occ_99,	 occ2000_99,	 unmatched_ind_99,	 ind2000_99))
+
+salary_data_filtered <- salary_data %>%
+  select(where(function(x) length(unique(x)) > 1))
+
+y <- salary_data_filtered$incwage
+X <- salary_data_filtered[, -which(names(salary_data_filtered) == "incwage")]
+
+
+for (col in names(X)) {
+  X[, col][is.na(X[, col])] <- mean(X[, col], na.rm = TRUE)
+}
+
+X <- as.matrix(X)
+
+# Perform cross-validation to choose the lambda (regularization parameter)
+cv_fit <- cv.glmnet(X, y, alpha = 1)
+
+# Get the optimal lambda value
+optimal_lambda <- cv_fit$lambda.min
+
+# Refit the model with the optimal lambda value
+lasso_model_optimal <- glmnet(X, y, alpha = 1, lambda = optimal_lambda)
+
+
+```
+
+```{r}
+simple <- read.csv("data/Salary_Data.csv")
+fit1 <- lm(Salary ~ ., data = simple) 
+summary(fit1)
+car::Anova(fit1)
+plot(fit1)
+```
+
+```{r}
+library(tidyverse)
+library(glmnet)
+
+
+columns_to_remove <- c("farm", "bpl", 'indname2000_99',
+'o_inclongj', 'o_union', 'o_county', 'o_schlcoll', 'o_oincwage', 'qsrcearn',
+'o_srcearn', 'occ_2010_orig', 'tcinclongj', 'o_qwkswork', 'qinclong', 'hrswork',
+'o_quhrswor', "yrimmig", 'county', "citizen", "mbpl", "fbpl", 'qwkswork', 'ind50ly',
+"nativity", "schlcoll", "union", "o_farm", "o_bpl", "o_yrimmig", 'quhrswor', 'ind1990',
+"o_citizen", "o_mbpl", "o_fbpl", "o_nativity", "o_educ99", "tcoincwage", 'hispan', 'educ99',
+"ind_2002_orig", "ind_2007_orig", "occ_81", "ind_81", "occ_2000female", 'metro', 'metarea',
+"unmatched_fem_81", "occ_2000male", "unmatched_male_81", "ind_2000", 
+"occ2000_81", "ind2000_81", "occ_1990", "ind_1990", "occ_1999", "ind_1999", 
+"unmatched_occ_90", "occ2000_90", "unmatched_ind_90", "ind2000_90",
+"indname2000_90", "unmatched_occ_99", "occ2000_99", "unmatched_ind_99",
+"ind2000_99", "sumadj_ind", "incbus", "incfarm", "o_gq", "o_month", 
+"o_labforce", "o_incbus", "o_incfarm", "o_qincwage", "groupquar", 
+"selfemp", "military", "employed", "notalloc", "basesamp", "unmatched_fem_81",
+"sumadj_ind", "sumadj_occ", "gq", "labforce", "popstat", "o_popstat", "selfemp",
+"groupquar", "notalloc", "expendbase10", "basesamp", "military", "sumadj_occ", 
+"qincwage", "labforce", "month", 'inclongj', 'oincwage', 'srcearn','niincwage','o_incwage','incwageman','tcincwage')
+
+df <- df2[, !colnames(df2) %in% columns_to_remove]
+
+df <- df[df$sex == 2, ]
+
+sapply(df, function(x) sum(as.numeric(which(is.na(x)))))
+
+Y <- df$incwage
+X.fl <- model.matrix(incwage ~ ., data = df)[,-1]
+
+colnames(X.fl)
+
+set.seed(2)
+
+fit.fl.cv <- cv.glmnet(x = X.fl, y = Y, alpha = 1, nfolds = 10)
+
+
+coef.nzero <- coef(fit.fl.cv, nzero = 6) #fit.fl.cv$nzero
+coef.nzero <- coef.nzero[which(coef.nzero !=0), ] 
+rownames(as.matrix(coef.nzero))
+
+print(fit.fl.cv)
+plot(fit.fl.cv)
+
+
+coef.min <- coef(fit.fl.cv, s="lambda.min")  
+coef.min <- coef.min[which(coef.min !=0),]  
+var.min <- rownames(as.matrix(coef.min))[-1]
+var.min
+
+columns_to_remove <- c("adj_occ2nameBusiness Operators","adj_occ2nameCommunity and Social Workers" ,         
+"adj_occ2nameComputer and Math Technicians","adj_occ2nameConsruction, Extraction, Installation" ,"adj_occ2nameFarming, Fishing & Forestry",            "adj_occ2namefinancial Operators", "adj_occ2nameLawyers, Judges,Physicans and dentists", "adj_occ2nameManagers"              ,"adj_occ2nameOffice and Admin Support" ,"adj_occ2nameProduction" ,"adj_occ2nameProtective Service adj_occupations"     ,"adj_occ2nameTransportation and materials moving" )
+var.min <- var.min[!var.min %in% columns_to_remove]
+
+data.fl.sub <- df[,c("incwage", var.min)]
+fit.min.lm <- lm(incwage~., data=data.fl.sub) 
+summary(fit.min.lm)
+
+
+library(car)
+fit.min.lm.back1 <- update(fit.min.lm, .~. - o_region-o_statefip-o_ind-o_ind1950-o_classwkr-o_occly-o_indly-o_classwly-o_wkswork1     -o_wkswork2-o_uhrswork-o_ftype-origrace-educorig-ind_orig) 
+
+
+summary(fit.min.lm.back1)
+
+fit.min.lm.back2 <- update(fit.min.lm.back1, .~. -o_pernum- o_wtsupp-o_relate-o_age-o_marst-o_empstat-o_occ) 
+summary(fit.min.lm.back2)
+
+fit.min.lm.back3 <- update(fit.min.lm.back2, .~. -occ1950) 
+summary(fit.min.lm.back3)
+
+fit.min.lm.back4 <- update(fit.min.lm.back3, .~. -constructextractinstall) 
+summary(fit.min.lm.back4)
+
+fit.min.lm.back5 <- update(fit.min.lm.back4, .~. -wagesamp) 
+summary(fit.min.lm.back5)
+
+```
+
+
+

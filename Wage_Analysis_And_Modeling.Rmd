@@ -1,0 +1,286 @@
+
+
+```{r}
+library(tidyverse)
+library(glmnet)
+
+df2 <- read_csv("CurrentPopulationSurvey.csv")
+
+columns_to_remove <- c("farm", "bpl", 'indname2000_99',
+                       'o_inclongj', 'o_union', 'o_county', 'o_schlcoll', 'o_oincwage', 'qsrcearn',
+                       'o_srcearn', 'occ_2010_orig', 'tcinclongj', 'o_qwkswork', 'qinclong', 'hrswork',
+                       'o_quhrswor', "yrimmig", 'county', "citizen", "mbpl", "fbpl", 'qwkswork', 'ind50ly',
+                       "nativity", "schlcoll", "union", "o_farm", "o_bpl", "o_yrimmig", 'quhrswor', 'ind1990',
+                       "o_citizen", "o_mbpl", "o_fbpl", "o_nativity", "o_educ99", "tcoincwage", 'hispan', 'educ99',
+                       "ind_2002_orig", "ind_2007_orig", "occ_81", "ind_81", "occ_2000female", 'metro', 'metarea',
+                       "unmatched_fem_81", "occ_2000male", "unmatched_male_81", "ind_2000", 'o_incwage', 'niincwage',
+                       "occ2000_81", "ind2000_81", "occ_1990", "ind_1990", "occ_1999", "ind_1999", "incwageman",
+                       "unmatched_occ_90", "occ2000_90", "unmatched_ind_90", "ind2000_90",
+                       "indname2000_90", "unmatched_occ_99", "occ2000_99", "unmatched_ind_99",
+                       "ind2000_99", "sumadj_ind", "o_gq", "o_month", 
+                       "o_labforce", "o_incbus", "o_incfarm", "o_qincwage", "groupquar", 
+                       "selfemp", "military", "employed", "notalloc", "basesamp", "unmatched_fem_81",
+                       "sumadj_ind", "sumadj_occ", "gq", "labforce", "popstat", "o_popstat", "selfemp",
+                       "groupquar", "notalloc", "expendbase10", "basesamp", "military", "sumadj_occ", 
+                       "qincwage", "labforce", "month", 'inclongj', 'oincwage', 'srcearn', "o_numprec",              
+                       "o_hwtsupp" ,              "o_region" ,               "o_statefip",             
+                       "o_metro",                 "o_metarea" ,              "o_pernum" ,              
+                       "o_wtsupp" ,               "o_relate",                "o_age"  ,                
+                       "o_sex",                   "o_race",                  "o_marst" ,               
+                       "o_hispan" ,               "o_educ",                  "o_empstat"  ,            
+                       "o_occ"     ,              "o_occ1990"   ,            "o_ind1990" ,             
+                       "o_occ1950"      ,         "o_ind"    ,               "o_ind1950"    ,          
+                        "o_classwkr" ,             "o_occly"  ,               "o_occ50ly" ,             
+                        "o_indly"   ,              "o_ind50ly"  ,             "o_classwly",             
+                       "o_wkswork1" ,             "o_wkswork2"  ,            "o_hrswork"  ,            
+                       "o_uhrswork" ,             "o_ftype" ,                "o_qincbus"  ,            
+                       "o_qincfarm", "tcincwage" , "hrwage", "realhrwage" , "uncenrealhrwage", "lnrwg",
+                       "occ" ,                    "occ1990" ,                "occ1950" , 
+                       "occly"   ,                "occ50ly",  "Agriculture" ,            "miningconstruction"  ,    "durables",               
+                       "nondurables"     ,        "Transport"  ,             "Utilities"     ,         
+                       "Communications" ,         "retailtrade"      ,       "wholesaletrade"  ,       
+                       "finance"         ,        "SocArtOther"     ,        "hotelsrestaurants"  ,    
+                       "Medical"        ,         "Education"      ,         "professional"  ,         
+                       "publicadmin"       ,      "manager" ,                "business"  ,             
+                       "financialop"        ,     "computer"  ,              "architect"    ,          
+                       "scientist"        ,       "socialworker"   ,         "postseceduc" ,           
+                       "legaleduc"           ,    "artist"   ,               "lawyerphysician" ,       
+                       "healthcare"  ,            "healthsupport" ,          "protective" ,            
+                       "foodcare"       ,         "building"    ,            "sales"   ,               
+                       "officeadmin"     ,        "farmer"         ,         "constructextractinstall",
+                       "production" ,             "transport", 'serial', 'wtsupp', 'ind1950', 'wkswork2',
+                       'origrace',
+                       'white',
+                       'black',
+                       'hisp',
+                       'othrace',
+                       'educorig',
+                       'ba',
+                       'adv',
+                       'wagesamp',
+                       'occ_orig',
+                       'adj_occ',
+                       'ind_orig',
+                       'adj_ind',
+                       'un_lnrealwg',
+                       'northeast',
+                       'northcentral',
+                       'south',
+                       'west',
+                       'female',
+                       'adj_ind2',
+                       'adj_occ2',
+                       'adj_occ2name',
+                       'LEHS',
+                       'inflate', 'perconexp', 'potexp2', 'pernum','ind','indly'
+                       )
+
+df2$region <- as.factor(df2$region)
+df2$statefip <- as.factor(df2$statefip)
+df2$race <- as.factor(df2$race)
+df2$marst <- as.factor(df2$marst)
+df2$hdwfcoh <- as.factor(df2$hdwfcoh)
+df2$ft <- as.factor(df2$ft)
+df2$ftype <- as.factor(df2$ftype)
+df2$classwly <- as.factor(df2$classwly)
+df2$classwkr <- as.factor(df2$classwkr)
+df2$empstat <- as.factor(df2$empstat)
+df2$sch <- as.factor(df2$sch)
+df2$relate <- as.factor(df2$relate)
+df2$sex <- as.factor(df2$sex)
+
+df2 <- df2[, !colnames(df2) %in% columns_to_remove]
+
+df <- df2[, !colnames(df2) %in% columns_to_remove]
+df <- df[df$sex == 2, ]
+
+df$region <- as.factor(df$region)
+df$statefip <- as.factor(df$statefip)
+df$race <- as.factor(df$race)
+df$marst <- as.factor(df$marst)
+df$hdwfcoh <- as.factor(df$hdwfcoh)
+df$ft <- as.factor(df$ft)
+df$ftype <- as.factor(df$ftype)
+df$classwly <- as.factor(df$classwly)
+df$classwkr <- as.factor(df$classwkr)
+df$empstat <- as.factor(df$empstat)
+df$sch <- as.factor(df$sch)
+df$relate <- as.factor(df$relate)
+
+
+sapply(df, function(x) sum(as.numeric(which(is.na(x)))))
+
+Y <- df$incwage
+X.fl <- model.matrix(incwage ~ ., data = df)[,-1]
+
+colnames(X.fl)
+
+fit.fl.cv <- cv.glmnet(x = X.fl, y = Y, alpha = 1, nfolds = 10)
+
+print(fit.fl.cv)
+plot(fit.fl.cv)
+
+
+coef.min <- coef(fit.fl.cv, s="lambda.min")  
+coef.min <- coef.min[which(coef.min !=0),]  
+var.min <- rownames(as.matrix(coef.min))[-1]
+
+var.min
+
+```
+```{r}
+important_2 <- c("year" ,      "numprec"  ,  "hwtsupp" ,   "region",   "statefip", "relate"  ,   "age"  ,     
+                 "race",      "marst",     "sch"    , "empstat", 
+               "classwkr",
+                 "classwly" , "wkswork1" ,  "uhrswork" ,  "ftype"  ,   "qincbus"  , 
+                 "annhrs"  ,   "ft",       "hdwfcoh")
+
+data_2 <- df[,c("incwage", important_2)]
+fit2 <- lm(incwage~year+numprec+region+statefip+relate+age+race+marst+sch+empstat+classwkr+classwly+wkswork1+uhrswork+ftype+qincbus+annhrs+ft+hdwfcoh, data=data_2,weight=hwtsupp) 
+car::Anova(fit2)
+
+predict(fit2, data.test)
+
+```
+
+
+```{r}
+fit2 <- update(fit2, .~. -qincbus) 
+car::Anova(fit2)
+```
+```{r}
+fit2 <- update(fit2, .~. -empstat) 
+car::Anova(fit2)
+summary(fit2)
+```
+
+
+```{r}
+library(lme4)
+m1 <- lm(incwage~year+region+age+race+wkswork1+uhrswork+sch+marst, data=df2, weights = hwtsupp) 
+summary(m1)
+
+m2 <- lm(incwage~year+region+age+race+wkswork1*sex+uhrswork+sch+marst, data=df2, weights = hwtsupp) 
+summary(m2)
+
+m4 <- lm(incwage~year+region+age+race+age*sex+uhrswork+wkswork1+sch+marst, data=df2, weights = hwtsupp) 
+summary(m4)
+
+m5 <- lm(incwage~year+region+age+as.factor(race)*sex+uhrswork+wkswork1+age+sch+marst, data=df2, weights = hwtsupp) 
+summary(m5)
+
+m3 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(scientist)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m3)
+
+m6 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(manager)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m6)
+
+m7 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(business)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m7)
+
+m8 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(computer)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m8)
+
+m9 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(lawyerphysician)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m9)
+
+m10 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(farmer)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m10)
+
+m11 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(foodcare)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m11)
+
+m12 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(healthcare)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m12)
+
+m13 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(transport)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m13)
+
+m14 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(production)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m14)
+
+m15 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(sales)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m15)
+
+m16 <- lm(incwage~year+region+age+as.factor(race)+wkswork1+uhrswork+factor(artist)*sex+sch+marst, data=df2, weights = hwtsupp) 
+summary(m16)
+
+m17 <- lm(incwage~year+region+age+race+wkswork1+uhrswork+marst*sex+sch, data=df2, weights = hwtsupp) 
+summary(m17)
+
+m18 <- lm(incwage~year+region+age+race+wkswork1+uhrswork+marst+sch*sex, data=df2, weights = hwtsupp) 
+summary(m18)
+
+sjPlot::plot_model(m2, type = 'pred', terms = c('wkswork1', 'sex'))
+sjPlot::plot_model(m3, type = 'pred', terms = c('scientist', 'sex'))
+sjPlot::plot_model(m4, type = 'pred', terms = c('age', 'sex'))
+sjPlot::plot_model(m5, type = 'pred', terms = c('race', 'sex'))
+sjPlot::plot_model(m6, type = 'pred', terms = c('manager', 'sex'))
+sjPlot::plot_model(m7, type = 'pred', terms = c('business', 'sex'))
+sjPlot::plot_model(m8, type = 'pred', terms = c('computer', 'sex'))
+sjPlot::plot_model(m9, type = 'pred', terms = c('lawyerphysician', 'sex'))
+sjPlot::plot_model(m10, type = 'pred', terms = c('farmer', 'sex'))
+sjPlot::plot_model(m11, type = 'pred', terms = c('foodcare', 'sex'))
+sjPlot::plot_model(m12, type = 'pred', terms = c('healthcare', 'sex'))
+sjPlot::plot_model(m13, type = 'pred', terms = c('transport', 'sex'))
+sjPlot::plot_model(m14, type = 'pred', terms = c('production', 'sex'))
+sjPlot::plot_model(m15, type = 'pred', terms = c('sales', 'sex'))
+sjPlot::plot_model(m16, type = 'pred', terms = c('artist', 'sex'))
+sjPlot::plot_model(m17, type = 'pred', terms = c('marst', 'sex'))
+sjPlot::plot_model(m18, type = 'pred', terms = c('sch', 'sex'))
+```
+```{r}
+library(tree)
+library(randomForest)
+fit_tree <- tree(incwage~sex+age+race+wkswork1+marst+race, df2) 
+plot(fit_tree)
+title(main="All variable tree")
+text(fit_tree, digits = 3)
+
+set.seed(1)
+fit.rf <- randomForest(incwage~sex+age+wkswork1, df2[1:10000,], mtry=3,ntree=10)
+plot(fit.rf)
+```
+```{r}
+rf.error.p <- 1:19 # set up a vector of length 19
+for (p in 1:19) # repeat the following code inside { } 19 times
+{
+fit.rf <- randomForest(incwage~sex+age+wkswork1, train_data[1:10000,], mtry=p, ntree=100)
+#plot(fit.rf, col= p, lwd = 3)
+rf.error.p[p] <- fit.rf$mse[100] # collecting oob mse based on 250 trees
+}
+plot(1:19, rf.error.p, pch=16,
+main = "Testing errors of mtry with 100 trees", xlab="mtry",
+ylab="OOB mse of mtry")
+lines(1:19, rf.error.p)
+```
+
+```{r}
+fit.rf.final <- randomForest(incwage~sex+age+wkswork1, df2[1:10000,], mtry=2, ntree=100) 
+plot(fit.rf.final)
+```
+```{r}
+set.seed(1)
+fit.rf <- randomForest(incwage~sex+age+wkswork1, df2[1:10000,], mtry=2,ntree=100)
+plot(fit.rf)
+```
+```{r}
+library(caTools)
+split <- sample.split(df2$incwage, SplitRatio = 0.8)
+train_data <- subset(df2, split == TRUE)
+test_data <- subset(df2, split == FALSE)
+
+set.seed(1)
+fit.rf <- randomForest(incwage~sex+age+wkswork1, train_data, mtry=2,ntree=100)
+plot(fit.rf)
+varImpPlot(fit.rf)
+
+
+```
+```{r}
+predicted_classes <- predict(fit.rf, newdata = test_data)
+prediction_forest <- predict(fit.rf, newdata = test_data)
+mse_forest <- mean((prediction_forest - test_data$incwage)^2)
+mse_forest
+```
+
